@@ -369,6 +369,8 @@ def relativeToLandmark(expDf,clutterDf):
 
     #landmark identity
     closest = np.array(lm_x,dtype='object')
+    
+    #landmark distance
     distance = np.array(lm_x,dtype='object')
 
     for i in range(len(closest)):

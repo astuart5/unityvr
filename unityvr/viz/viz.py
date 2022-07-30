@@ -171,7 +171,7 @@ def plotTrajwithParameterandCondition(df, figsize, parameter='angle',
                                      ):
 
     #if conversion is not specified, use default conversion
-    if ~hasattr(df,'dc2cm'):
+    if not hasattr(df,'dc2cm'):
         df.dc2cm = dc2cm
         print("dc2cm:",dc2cm)
 
