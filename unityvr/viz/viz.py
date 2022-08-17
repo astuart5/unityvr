@@ -216,8 +216,11 @@ def circ_point_dist_plotter(ax,degrees,bin_size,zero_direction,
     ax.set_thetamax(max_ax_ang)
     ax.set_ylim(0,ylim_max)
 
-def full_circular_plotter(ax, df, cond, k_min, k_max, R, muvar='mu', color='grey', sign=0, alpha=0.85, label=None, outerpoints=True):
+def full_circular_plotter(ax, df, cond, k_min, k_max, R, muvar='mu', color='grey', sign=0, alpha=0.85, label=None, outerpoints=True, convert_to_2pi=False):
 
+    if convert_to_2pi:
+        df[muvar] = (df[muvar]%360)
+    
     x = df[muvar].where(cond & (df['kappa']>k_min)).astype('float').values
     pva = np.nanmean(np.exp(1j*np.deg2rad(x)))
 
@@ -258,3 +261,68 @@ def linear_ordered_plotter(ax, inDf, order, variable, colormapper = None, hue_va
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles[:N],labels[:N],bbox_to_anchor=(1.2, 1.2))
     sns.despine()
+    
+def stacked_graph_fixation(fixDf, variable,
+                           colors = ['steelblue','lightblue','grey'],
+                           edgecolor = 'k',
+                           pltsize = (6,4),
+                           fontminor = 8,
+                           rot = 45,
+                           pad = 50,
+                           by = None,
+                           ignore = None
+                          ):
+                       
+    df = fixDf.copy()
+    df_indexed = df.reset_index()
+    ax = df.plot(kind='bar', stacked=True, figsize=pltsize, color=colors, edgecolor=edgecolor)
+    ax.yaxis.get_major_locator().set_params(integer=True)
+
+    if by is not None:
+        Npatches = len(ax.patches)
+        Nminors = len(list(df.index.levels[1]))
+        Nmajors = len(list(df.index.levels[0]))
+        Nxobj = len(df_indexed)
+        
+        iterations = int(Npatches/Nxobj)
+        index_array = df_indexed.loc[df_indexed[variable]!=ignore].index.values
+        mod_array = np.arange(len(index_array))%Nminors
+        indexed_ignored_array = df_indexed.loc[df_indexed[variable]==ignore].index.values
+
+        # Move back every nth patch
+        for i in range(iterations):
+            iter_array = (i*Nxobj)+index_array
+            iter_ignored_array = (i*Nxobj)+indexed_ignored_array
+            for j,p in enumerate(iter_array):
+                new_x = ax.patches[p].get_x() - mod_array[j]/Nminors
+                ax.patches[p].set_x(new_x)
+            for m in iter_ignored_array:
+                new_x = ax.patches[m].get_x() - 0.5
+                ax.patches[m].set_x(new_x)
+        
+        #move x limit
+        ax.set_xlim(-1,None)
+
+        # Update tick locations correspondingly
+        minor_tick_locs = [x.get_x()+1/4 for x in ax.patches[:]]
+        
+        df_indexed['x_locs'] = minor_tick_locs[:Nxobj]
+        major_tick_locs = df_indexed.groupby(variable).mean().reset_index()['x_locs'].values
+        
+        if minor_tick_locs[0]==major_tick_locs[0]:
+            major_tick_locs[0]+=0.1
+        
+        ax.set_xticks(minor_tick_locs, minor=True)
+        ax.set_xticks(major_tick_locs)
+
+        # Use indices from dataframe as tick labels
+        minor_tick_labels = [None]*2*len(list(df.index.get_level_values(1)))+list(df.index.get_level_values(1))
+        major_tick_labels = list(df.index.get_level_values(0).unique())
+        ax.xaxis.set_ticklabels(minor_tick_labels, minor=True, fontsize=fontminor)
+        ax.xaxis.set_ticklabels(major_tick_labels)
+
+        # Remove ticks and organize tick labels to avoid overlap
+        ax.tick_params(axis='x', which='minor', rotation=rot)
+        ax.tick_params(axis='x', which='major', pad=pad, rotation=0)
+
+    return ax
