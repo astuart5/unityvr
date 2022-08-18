@@ -263,41 +263,51 @@ def linear_ordered_plotter(ax, inDf, order, variable, colormapper = None, hue_va
     sns.despine()
     
 def stacked_graph_fixation(fixDf, variable,
-                           colors = ['steelblue','lightblue','grey'],
+                           cmap = "RdGy_r",
                            edgecolor = 'k',
                            pltsize = (6,4),
                            fontminor = 8,
                            rot = 45,
                            pad = 50,
                            by = None,
-                           ignore = None
+                           no_comparison = None #if a particular experimental condition is not being compared
                           ):
-                       
+    
+    #get dataframe with and without reindexing
     df = fixDf.copy()
     df_indexed = df.reset_index()
+    
+    #get number of categories "menotaxis", "phototaxis" etc.
+    n = len(df.columns)
+    colors = sns.color_palette(cmap,n)
+    
+    #plot
     ax = df.plot(kind='bar', stacked=True, figsize=pltsize, color=colors, edgecolor=edgecolor)
+    
+    #integer y values only
     ax.yaxis.get_major_locator().set_params(integer=True)
-
+    
+    #seperate by some category
     if by is not None:
-        Npatches = len(ax.patches)
-        Nminors = len(list(df.index.levels[1]))
-        Nmajors = len(list(df.index.levels[0]))
-        Nxobj = len(df_indexed)
+        Npatches = len(ax.patches) #number of rectangular patches
+        Nminors = len(list(df.index.levels[1])) #number of minor categories
+        Nmajors = len(list(df.index.levels[0])) #number of major categories
+        Nxobj = len(df_indexed) #number of objects on the x-axis
         
-        iterations = int(Npatches/Nxobj)
-        index_array = df_indexed.loc[df_indexed[variable]!=ignore].index.values
-        mod_array = np.arange(len(index_array))%Nminors
-        indexed_ignored_array = df_indexed.loc[df_indexed[variable]==ignore].index.values
+        iterations = int(Npatches/Nxobj) #iterations for for-loop
+        index_array = df_indexed.loc[df_indexed[variable]!=no_comparison].index.values #ignore shift for no_comparison
+        mod_array = np.arange(len(index_array))%Nminors #mod array
+        indexed_ignored_array = df_indexed.loc[df_indexed[variable]==no_comparison].index.values #ignored indices
 
         # Move back every nth patch
         for i in range(iterations):
             iter_array = (i*Nxobj)+index_array
             iter_ignored_array = (i*Nxobj)+indexed_ignored_array
             for j,p in enumerate(iter_array):
-                new_x = ax.patches[p].get_x() - mod_array[j]/Nminors
+                new_x = ax.patches[p].get_x() - mod_array[j]/Nminors #shift left
                 ax.patches[p].set_x(new_x)
             for m in iter_ignored_array:
-                new_x = ax.patches[m].get_x() - 0.5
+                new_x = ax.patches[m].get_x() - 0.5 #ignored array shift left
                 ax.patches[m].set_x(new_x)
         
         #move x limit
@@ -305,10 +315,10 @@ def stacked_graph_fixation(fixDf, variable,
 
         # Update tick locations correspondingly
         minor_tick_locs = [x.get_x()+1/4 for x in ax.patches[:]]
-        
         df_indexed['x_locs'] = minor_tick_locs[:Nxobj]
         major_tick_locs = df_indexed.groupby(variable).mean().reset_index()['x_locs'].values
         
+        #if equal, minor ticks not show, therefore shift
         if minor_tick_locs[0]==major_tick_locs[0]:
             major_tick_locs[0]+=0.1
         
@@ -316,7 +326,7 @@ def stacked_graph_fixation(fixDf, variable,
         ax.set_xticks(major_tick_locs)
 
         # Use indices from dataframe as tick labels
-        minor_tick_labels = [None]*2*len(list(df.index.get_level_values(1)))+list(df.index.get_level_values(1))
+        minor_tick_labels = [None]*(n-1)*len(list(df.index.get_level_values(1)))+list(df.index.get_level_values(1))
         major_tick_labels = list(df.index.get_level_values(0).unique())
         ax.xaxis.set_ticklabels(minor_tick_labels, minor=True, fontsize=fontminor)
         ax.xaxis.set_ticklabels(major_tick_labels)
