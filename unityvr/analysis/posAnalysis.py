@@ -47,6 +47,13 @@ def position(uvrDat, derive = True, rotate_by = None, filter_date = '2021-09-08'
         posDf['s'] = np.cumsum(posDf['ds'])
         posDf['dTh'] = (np.diff(posDf['angle'],prepend=posDf['angle'].iloc[0]) + 180)%360 - 180
         posDf['radangle'] = ((posDf['angle']+180)%360-180)*np.pi/180
+        
+        #get flight and clipped from flightDf dataframe
+        if hasattr(uvrDat,'flightDf'):
+            if ('flight' in uvrDat.flightDf):
+                posDf['flight'] = uvrDat.flightDf['flight'].copy()
+            if ('clipped' in uvrDat.flightDf):
+                posDf['clipped'] = uvrDat.flightDf['clipped'].copy()
 
     if plot:
         fig, ax = viz.plotTrajwithParameterandCondition(posDf, figsize=(10,5), parameter='angle')

@@ -33,6 +33,7 @@ class unityVRexperiment:
     texDf: pd.DataFrame = pd.DataFrame(columns=texDfCols)
     shapeDf: pd.DataFrame = pd.DataFrame()
     timeDf: pd.DataFrame = pd.DataFrame()
+    flightDf: pd.DataFrame = pd.DataFrame()
 
     # object locations
     objDf: pd.DataFrame = pd.DataFrame(columns=objDfCols)
@@ -68,6 +69,7 @@ class unityVRexperiment:
         self.texDf.to_csv(sep.join([savepath,'texDf.csv']))
         self.shapeDf.to_csv(sep.join([savepath,'shapeDf.csv']))
         self.timeDf.to_csv(sep.join([savepath,'timeDf.csv']))
+        self.flightDf.to_csv(sep.join([savepath,'flightDf.csv']))
 
         return savepath
 
@@ -112,9 +114,14 @@ def loadUVRData(savepath):
         timeDf = pd.read_csv(sep.join([savepath,'timeDf.csv'])).drop(columns=['Unnamed: 0'])
     except FileNotFoundError:
         timeDf = pd.DataFrame()
-        #Shape dataframe was not computed. Fill with empty DataFrame
+        #Time dataframe was not computed. Fill with empty DataFrame
+    try:
+        flightDf = pd.read_csv(sep.join([savepath,'flightDf.csv'])).drop(columns=['Unnamed: 0'])
+    except FileNotFoundError:
+        flightDf = pd.DataFrame()
+        #Flight dataframe was not computed. Fill with empty DataFrame
 
-    uvrexperiment = unityVRexperiment(metadata=metadat,posDf=posDf,ftDf=ftDf,nidDf=nidDf,objDf=objDf,texDf=texDf,shapeDf=shapeDf,timeDf=timeDf)
+    uvrexperiment = unityVRexperiment(metadata=metadat,posDf=posDf,ftDf=ftDf,nidDf=nidDf,objDf=objDf,texDf=texDf,shapeDf=shapeDf,timeDf=timeDf,flightDf=flightDf)
 
     return uvrexperiment
 

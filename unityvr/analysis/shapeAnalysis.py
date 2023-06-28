@@ -18,7 +18,7 @@ from unityvr.analysis.utils import getTrajFigName
 
 #convert to shape space
 def shape(posDf, step = None, interp='linear', stitch=False, plot = False, plotsave=False, saveDir=None, uvrDat=None):
-
+    
     #if the posDf has been segmented and clipped to remove regions of flight
     if 'clipped' in posDf:
         posDf = carryAttrs(posDf.loc[posDf['clipped']==0], posDf)
@@ -26,6 +26,7 @@ def shape(posDf, step = None, interp='linear', stitch=False, plot = False, plots
         posDf = carryAttrs(pDf,posDf)
     if 'flight' in posDf:
         if not stitch:
+            #renaming variable does not mutate original dataframe
             posDf = carryAttrs(posDf.loc[posDf['flight']==0], posDf)
             interp = 'nearest'
         if stitch:
@@ -137,7 +138,7 @@ def segment(shapeDf, plot=False):
 
     df = shapeDf.copy()
 
-    thresh = threshold_otsu(df['tortuosity'].transform(lambda x: np.log(x)).dropna())
+    thresh = threshold_otsu(df['tortuosity'].transform(lambda x: np.log(x)).replace([np.inf], np.nan).dropna())
     df['curvy'] = np.log(df['tortuosity'])>thresh
 
     if plot:
@@ -241,10 +242,42 @@ def extractVoltes(shapeDf, res_cm = 0.5, L_thresh_min_cm = 1 #in cm
 
     return df
 
-def shapeToTime(posDf,shapeDf,label,new_name=None):
+def fixationClassify(shapeDf,
+                    window_size = 10, #cm
+                    front_lims = [-np.pi/4,np.pi/4],
+                    back_lims = [-3*np.pi/4,3*np.pi/4],
+                    pva_lims = [0.2,np.inf],
+                    classes = ['-ve phototaxis','+ve phototaxis','menotaxis','none']
+                    ):
+    
+    w  = int(len(shapeDf)/shapeDf['s'].iloc[-1]*(window_size/shapeDf.dc2cm))
+    
+    df = shapeDf.copy()
+    
+    df['pva_angle'] = df['angle'].rolling(w,center=True).apply(lambda x: np.angle(np.mean(np.exp(1j*np.deg2rad(x)))))
+    df['pva_mag'] = df['angle'].rolling(w,center=True).apply(lambda x: np.abs(np.mean(np.exp(1j*np.deg2rad(x)))))
+    
+    neg = (df['pva_angle']>=front_lims[0])&(df['pva_angle']<=front_lims[1])
+    pos = (df['pva_angle']<=back_lims[0])|(df['pva_angle']>=back_lims[1])
+    straight = (df['pva_mag']>=pva_lims[0])&(df['pva_mag']<=pva_lims[1])
+    nan = (np.isnan(df['pva_mag']))|(np.isnan(df['pva_angle']))
+
+    df.loc[neg & straight,'fixation'] = classes[0]
+    df.loc[pos & straight,'fixation'] = classes[1]
+    df.loc[~(neg|pos)&straight,'fixation'] = classes[2]
+    df.loc[~straight,'fixation'] = classes[3]
+    df.loc[nan,'fixation'] = np.nan
+
+    df['fixation'] = pd.Categorical(df['fixation'], classes)
+    
+    df = carryAttrs(df, shapeDf)
+    
+    return df
+
+def shapeToTime(posDf,shapeDf,label,new_name=None,enforce_nearest=False):
     
     data_type = shapeDf.dtypes[label]
-    if data_type == 'bool':
+    if ((data_type == 'bool')|(enforce_nearest==True)):
         interp_type = 'int'
         interp_kind = 'nearest'
         #fill = 0

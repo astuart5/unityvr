@@ -1,7 +1,7 @@
 ### This module contains functions for plotting VR data, including functions to vizualize trajectories, frame rate, ...
 
 import matplotlib.patches as mpatches
-from matplotlib import patches
+from matplotlib import patches,colors
 import matplotlib.pyplot as plt
 import numpy as np
 from os.path import sep, isfile, exists
@@ -144,9 +144,24 @@ def plotObjectEllipse(ax, rad, pos):
     return ax
 
 
-def plotTraj(ax,xpos,ypos,param,size=5,unit="cm", cmap='twilight_shifted',limvals=(0,360)):
-
-    cb = ax.scatter(xpos,ypos,s=size,c=param,cmap=cmap, vmin=limvals[0], vmax=limvals[1])
+def plotTraj(ax,xpos,ypos,param,size=5,unit="cm", cmap='twilight_shifted', limvals=(0,360), discrete=False):
+    
+    color_map = plt.get_cmap(cmap)
+    
+    #discrete colormap
+    if discrete:
+        m = limvals[0]-0.5
+        M = limvals[1]+1 if limvals[1] is not None else np.max(param)
+        
+        if pd.Series(np.diff(np.unique(param))).dropna().min()>0:
+            norm = colors.BoundaryNorm(np.arange(m, M, pd.Series(np.diff(np.unique(param))).dropna().min()), color_map.N)
+            cb = ax.scatter(xpos,ypos,s=size,c=param,cmap=color_map, norm=norm)
+        else:
+            cb = ax.scatter(xpos,ypos,s=size,c=param,cmap=color_map, vmin=m, vmax=M)
+    else:
+        #continuous colormap
+        cb = ax.scatter(xpos,ypos,s=size,c=param,cmap=color_map, vmin=limvals[0], vmax=limvals[1])
+        
     ax.plot(xpos[0],ypos[0],'ok')
     ax.text(xpos[0]+0.2,ypos[0]+0.2,'start')
     ax.plot(xpos[-1],ypos[-1],'sk')
@@ -167,6 +182,7 @@ def plotTrajwithParameterandCondition(df, figsize, parameter='angle',
                                       plotOriginal=True,
                                       stitch = False,
                                       mylimvals = (0,360),
+                                      discrete = False,
                                       dc2cm = 10
                                      ):
 
@@ -193,7 +209,7 @@ def plotTrajwithParameterandCondition(df, figsize, parameter='angle',
         axs[0],cb = plotTraj(axs[0],df.loc[condition,x_label].values*df.dc2cm,
                              df.loc[condition,y_label].values*df.dc2cm,
                              df[parameter].loc[condition].transform(transform),
-                             5,"cm", mycmap, mylimvals)
+                             5,"cm", mycmap, mylimvals, discrete=discrete)
         plt.colorbar(cb,cax=axs[1],label=parameter)
 
     return fig, axs

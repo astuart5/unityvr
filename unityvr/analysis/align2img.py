@@ -45,7 +45,7 @@ def debugAlignmentPlots(uvrDat,imgMetadat, imgInd, volFramePos):
 
 
 # generate combined DataFrame
-def combineImagingAndPosDf(imgDat, posDf, volFramePos):
+def combineImagingAndPosDf(imgDat, posDf, volFramePos, timeDf=None):
     expDf = imgDat.copy()
     lendiff = len(expDf) - len(posDf.x.values[volFramePos])
     if lendiff != 0:
@@ -67,31 +67,43 @@ def combineImagingAndPosDf(imgDat, posDf, volFramePos):
         expDf['vR'] = posDf.vR.values[volFramePos]
         expDf['vTfilt'] = posDf.vT_filt.values[volFramePos]
         expDf['vRfilt'] = posDf.vR_filt.values[volFramePos]
-    try:
-        expDf['s'] = posDf.s.values[volFramePos]
-        expDf['ds'] = np.diff(expDf.s.values,prepend=0)
-        expDf['dx'] = np.diff(expDf.x.values,prepend=0)
-        expDf['dy'] = np.diff(expDf.y.values,prepend=0)
-    except AttributeError:
-        print("posDf has not been processed.")
-    try:
-        expDf['tortuosity'] = posDf.tortuosity.values[volFramePos]
-        expDf['curvy'] = posDf.curvy.values[volFramePos]
-        expDf['voltes'] = posDf.voltes.values[volFramePos]
-        expDf['x_stitch'] = posDf.x_stitch.values[volFramePos]
-        expDf['y_stitch'] = posDf.y_stitch.values[volFramePos]
-    except AttributeError:
-        print("posDf did not contain tortuosity, curvature, voltes or stitched positions")
-    try:
-        expDf['flight'] = posDf.flight.values[volFramePos]
-    except AttributeError:
-        expDf['flight'] = np.zeros(np.shape(expDf['x']))
-        print("posDf did not contain flight")
-    try:
-        expDf['clipped'] = posDf.clipped.values[volFramePos]
-    except AttributeError:
-        expDf['clipped'] = np.zeros(np.shape(expDf['x']))
-        print("posDf did not contain clipped")
+    if timeDf is None:
+        try:
+            expDf['s'] = posDf.s.values[volFramePos]
+            expDf['ds'] = np.diff(expDf.s.values,prepend=0)
+            expDf['dx'] = np.diff(expDf.x.values,prepend=0)
+            expDf['dy'] = np.diff(expDf.y.values,prepend=0)
+        except AttributeError:
+            print("aligning: posDf has not been processed.")
+        try:
+            expDf['tortuosity'] = posDf.tortuosity.values[volFramePos]
+            expDf['curvy'] = posDf.curvy.values[volFramePos]
+            expDf['voltes'] = posDf.voltes.values[volFramePos]
+            expDf['x_stitch'] = posDf.x_stitch.values[volFramePos]
+            expDf['y_stitch'] = posDf.y_stitch.values[volFramePos]
+        except AttributeError:
+            print("aligning: posDf did not contain tortuosity, curvature, voltes or stitched positions")
+        try:
+            expDf['flight'] = posDf.flight.values[volFramePos]
+        except AttributeError:
+            expDf['flight'] = np.zeros(np.shape(expDf['x']))
+            print("aligning: posDf did not contain flight")
+        try:
+            expDf['clipped'] = posDf.clipped.values[volFramePos]
+        except AttributeError:
+            expDf['clipped'] = np.zeros(np.shape(expDf['x']))
+            print("aligning: posDf did not contain clipped")
+    else:
+        expDf['s'] = timeDf['s']
+        expDf['ds'] = timeDf['ds']
+        expDf['dx'] = timeDf['dx']
+        expDf['dy'] = timeDf['dy']
+        expDf['tortuosity'] = timeDf['tortuosity']
+        expDf['curvy'] = timeDf['curvy']
+        expDf['voltes'] = timeDf['voltes']
+        expDf['x_stitch'] = timeDf['x_stitch']
+        expDf['y_stitch'] = timeDf['y_stitch']
+        print('aligning: derived values extracted from timeDf')
     return expDf
 
 
