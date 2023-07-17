@@ -355,14 +355,14 @@ def addDFFColorbar(fig, cax, ax):
     cbar.set_label('$(F - F_0) / F_0$ (per ROI)')  # vertically oriented colorbar
 
 
-def relativeToLandmark(expDf,clutterDf):
+def relativeToLandmark(expDf,clutterDf, xynames = ('x','y')):
     # Find closest landmark, compute heading relative to it
 
     cDf = clutterDf.copy()
 
     #fly positions
-    x = expDf['x'].values
-    y = expDf['y'].values
+    x = expDf[xynames[0]].values
+    y = expDf[xynames[1]].values
 
     #landmark position
     lm_x = np.zeros(len(expDf)); lm_y = np.zeros(len(expDf))
@@ -376,10 +376,15 @@ def relativeToLandmark(expDf,clutterDf):
     for i in range(len(closest)):
         cDf['dist'] = np.hypot(abs(cDf['px'].values-x[i]), abs(cDf['py'].values-y[i]))
         loc = cDf.dist.idxmin()
-        distance[i] = cDf.loc[loc,'dist']
-        closest[i] = cDf.loc[loc,'name']
-        lm_x[i] = cDf.loc[loc,'px']
-        lm_y[i] = cDf.loc[loc,'py']
+        try:
+            distance[i] = cDf.loc[loc,'dist']
+            closest[i] = cDf.loc[loc,'name']
+            lm_x[i] = cDf.loc[loc,'px']
+            lm_y[i] = cDf.loc[loc,'py']
+        except KeyError:
+            closest[i] = np.nan
+            lm_x[i] = np.nan
+            lm_y[i] = np.nan
 
     #complex vector
     vec = (lm_x-x) + 1j*(lm_y-y)

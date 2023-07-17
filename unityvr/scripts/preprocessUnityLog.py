@@ -3,22 +3,20 @@
 from os import listdir
 from os.path import isfile, join
 from unityvr.preproc import logproc as lp
-import sys, getopt
+import sys
 
 
 def preprocessUnityVRlogs(rootDir, dataDir):
     dirName = rootDir + 'raw/' + dataDir
-    condition = dataDir.split('/')[3]
     preprocDir = rootDir + 'preproc/'+ dataDir
-
     fileNames = [f for f in listdir(dirName) if isfile(join(dirName, f)) and '.json' in f]
 
     for fileName in fileNames:
         print(fileName  + '\n')
-        uvrTrial = lp.constructUnityVRexperiment(dirName,fileName)
-        uvrTrial.printMetadata()
-
-        savepath = uvrTrial.saveData(preprocDir, (uvrTrial.metadata['expid']).split('_')[-1] + '/' + uvrTrial.metadata['trial'])
+        savepath =  lp.convertJsonToPandas(dirName,fileName,preprocDir, computePDtrace=False)
+        #uvrTrial = lp.constructUnityVRexperiment(dirName,fileName)
+        #uvrTrial.printMetadata()
+        #savepath = uvrTrial.saveData(preprocDir, (uvrTrial.metadata['expid']).split('_')[-1] + '/' + uvrTrial.metadata['trial'])
         print(savepath)
 
 if __name__ == "__main__":
@@ -35,3 +33,4 @@ if __name__ == "__main__":
         preprocessUnityVRlogs(sys.argv[1],sys.argv[2])
 
     print("\n all done!")
+    
