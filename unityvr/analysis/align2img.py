@@ -49,9 +49,11 @@ def combineImagingAndPosDf(imgDat, posDf, volFramePos, timeDf=None):
     expDf = imgDat.copy()
     lendiff = len(expDf) - len(posDf.x.values[volFramePos])
     if lendiff != 0:
-        print('Truncated fictrac recording.')
-        expDf = expDf[:-lendiff]
+        print(f'Truncated fictrac recording. Difference in length: {lendiff}')
+        if lendiff > 0: expDf = expDf[:-lendiff]
+        elif lendiff < 0: volFramePos = volFramePos[:lendiff]
     expDf['posTime'] = posDf.time.values[volFramePos]
+    expDf['frame'] = posDf.frame.values[volFramePos]
     expDf['x'] = posDf.x.values[volFramePos]
     expDf['y'] = posDf.y.values[volFramePos]
     expDf['angle'] = posDf.angle.values[volFramePos]
@@ -110,11 +112,7 @@ def combineImagingAndPosDf(imgDat, posDf, volFramePos, timeDf=None):
 def loadAndAlignPreprocessedData(root, subdir, flies, conditions, trials, panDefs, condtype, img = 'img', vr = 'uvr'):
     allExpDf = pd.DataFrame()
     for f, fly in enumerate(flies):
-
         print(fly)
-        flyStatsdf = pd.DataFrame(columns=['fly','condition','circmean','circvar','circvarPVA','circmeanCorr'])
-        flyStats = np.ones((4, len(conditions)))*np.nan
-        condlabel = []
         for c, cond in enumerate(conditions):
 
             for t, trial in enumerate(trials):
@@ -128,6 +126,13 @@ def loadAndAlignPreprocessedData(root, subdir, flies, conditions, trials, panDef
                 with open(sep.join([preprocDir, img,'imgMetadata.json'])) as json_file:
                     imgMetadat = json.load(json_file)
 
+                with open(sep.join([preprocDir, vr,'metadata.json'])) as json_file:
+                    uvrMetadat = json.load(json_file)
+
+                prerotation = 0
+                try: prerotation = uvrMetadat["rotated_by"]*np.pi/180
+                except: pass
+
                 uvrDat = logproc.loadUVRData(sep.join([preprocDir, vr]))
                 posDf = uvrDat.posDf
 
@@ -135,10 +140,10 @@ def loadAndAlignPreprocessedData(root, subdir, flies, conditions, trials, panDef
                 expDf = combineImagingAndPosDf(imgDat, posDf, volFramePos)
 
                 if 'B2s' in panDefs.getPanID(cond) and condtype == '2d':
-                    expDf['angleBrightAligned'] = np.mod(expDf['angle'].values-0*180/np.pi,360)
+                    expDf['angleBrightAligned'] = np.mod(expDf['angle'].values-0*180/np.pi - prerotation*180/np.pi,360)
                 else:
-                    expDf['angleBrightAligned'] = np.mod(expDf['angle'].values-panDefs.panOrigin[panDefs.getPanID(cond)]*180/np.pi,360)
-                    xr, yr = autils.rotatepath(expDf.x.values,expDf.y.values, -panDefs.panOrigin[panDefs.getPanID(cond)])
+                    expDf['angleBrightAligned'] = np.mod(expDf['angle'].values-(panDefs.panOrigin[panDefs.getPanID(cond)]+prerotation)*180/np.pi,360)
+                    xr, yr = autils.rotatepath(expDf.x.values,expDf.y.values, -(panDefs.panOrigin[panDefs.getPanID(cond)]+prerotation))
                     expDf.x = xr
                     expDf.y = yr
                 #expDf['flightmask'] = np.logical_and(expDf.vTfilt.values < maxVt, expDf.vTfilt.values > minVt)
