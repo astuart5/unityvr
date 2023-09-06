@@ -340,7 +340,7 @@ def plotDFFheatmap(ax, df, roiname='slice', lefthanded=False):
 
     order = np.arange(len(roinames),0,-1).astype('int')-1
     if lefthanded: order = np.arange(0,len(roinames)+1).astype('int')
-
+    
     cax = ax.pcolor(df.posTime,order,df[roinames].values.T,cmap='Blues', edgecolors='face',shading='auto')
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('\nROIs (n = {0})'.format(df[roinames].values.shape[1]))
