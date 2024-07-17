@@ -21,7 +21,7 @@ def position(uvrDat, derive = True, rotate_by = None, filter_date = '2021-09-08'
     # filter_date: date of experiment after which right handed angle convention will not be forced when loading posDf; this is because
     #              converting from Unity's left handed angle convention to right handed convention was implemented after a certain 
     #              date in the preproc.py file
-
+    
     posDf = uvrDat.posDf
 
     #angle correction
@@ -43,10 +43,7 @@ def position(uvrDat, derive = True, rotate_by = None, filter_date = '2021-09-08'
     posDf.dc2cm = 10
 
     if derive:
-        posDf['ds'] = np.sqrt(posDf['dx']**2+posDf['dy']**2)
-        posDf['s'] = np.cumsum(posDf['ds'])
-        posDf['dTh'] = (np.diff(posDf['angle'],prepend=posDf['angle'].iloc[0]) + 180)%360 - 180
-        posDf['radangle'] = ((posDf['angle']+180)%360-180)*np.pi/180
+        posDf = posDerive(posDf)
         
         #get flight and clipped from flightDf dataframe
         if hasattr(uvrDat,'flightDf'):
@@ -60,6 +57,13 @@ def position(uvrDat, derive = True, rotate_by = None, filter_date = '2021-09-08'
         if plotsave:
             fig.savefig(getTrajFigName("walking_trajectory",saveDir,uvrDat.metadata))
 
+    return posDf
+
+def posDerive(posDf):
+    posDf['ds'] = np.sqrt(posDf['dx']**2+posDf['dy']**2)
+    posDf['s'] = np.cumsum(posDf['ds'])
+    posDf['dTh'] = (np.diff(posDf['angle'],prepend=posDf['angle'].iloc[0]) + 180)%360 - 180
+    posDf['radangle'] = ((posDf['angle']+180)%360-180)*np.pi/180
     return posDf
 
 #segment flight bouts
