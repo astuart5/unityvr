@@ -89,6 +89,10 @@ def generateUnityExpDf(imgVolumeTimes, uvrDat, imgMetadat, suppressDepugPlot = F
      expDf = mergeUnityDfs([x for x in unityDfsDS if x is not None],**mergeUnityDfs_params)
      return expDf
 
+def truncateImgDataToUnityDf(imgData, expDf):
+    imgData = imgData[np.in1d(imgData['volumes [s]'].values, expDf['volumes [s]'].values,)].copy()
+    return imgData
+
 
 ## combineImagingAndPosDf will be deprecated in the future
 # generate combined DataFrame
