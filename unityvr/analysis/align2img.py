@@ -57,7 +57,7 @@ def mergeUnityDfs(unityDfs, on = ['frame', 'time', 'volumes [s]'], interpolate=N
     return unityDfMerged
 
 #generate expDf in a general fashion
-def generateUnityExpDf(imgVolumeTimes, uvrDat, imgMetadat, suppressDepugPlot = False, dataframeAppend = 'Df', frameStr = 'frame', findImgFrameTimes_params={}, debugAlignmentPlots_params={}, mergeUnityDfs_params = {}):
+def generateUnityExpDf(imgVolumeTimes, uvrDat, imgMetadat, suppressDepugPlot = False, dataframeAppend = 'Df', frameStr = 'frame', timeStr = 'volumes [s]', findImgFrameTimes_params={}, debugAlignmentPlots_params={}, mergeUnityDfs_params = {}):
      imgVolumeTimes = imgVolumeTimes.copy()
 
      unityDfs = [f for f in  uvrDat.__dataclass_fields__ if dataframeAppend in f]
@@ -84,13 +84,13 @@ def generateUnityExpDf(imgVolumeTimes, uvrDat, imgMetadat, suppressDepugPlot = F
                     volFrameId = np.where(np.in1d(unityDf.frame.values,volFrame, ))[0] #in 1d gives true when the element of the 1st array is in the second array
                     framesinPos = np.where(np.in1d(uvrDat.posDf.frame.values[volFramePos], unityDf.frame.values[volFrameId]))[0] #which volume start frames of current Df are in posDf
                     unityDfsDS[i] = unityDf.iloc[volFrameId,:].copy()
-                    unityDfsDS[i]['volumes [s]'] = imgVolumeTimes[framesinPos].copy() #get the volume start time for the appropriate volumes in the unity array
+                    unityDfsDS[i][timeStr] = imgVolumeTimes[framesinPos].copy() #get the volume start time for the appropriate volumes in the unity array
      
      expDf = mergeUnityDfs([x for x in unityDfsDS if x is not None],**mergeUnityDfs_params)
      return expDf
 
-def truncateImgDataToUnityDf(imgData, expDf):
-    imgData = imgData[np.in1d(imgData['volumes [s]'].values, expDf['volumes [s]'].values,)].copy()
+def truncateImgDataToUnityDf(imgData, expDf, timeStr = 'time [s]'):
+    imgData = imgData[np.in1d(imgData[timeStr].values, expDf[timeStr].values,)].copy()
     return imgData
 
 
