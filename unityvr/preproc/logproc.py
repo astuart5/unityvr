@@ -116,13 +116,13 @@ def convertJsonToPandas(dirName,fileName,saveDir, computePDtrace):
     return savepath
 
 # constructor for unityVRexperiment
-def constructUnityVRexperiment(dirName,fileName):
+def constructUnityVRexperiment(dirName,fileName,**kwargs):
 
     dat = openUnityLog(dirName, fileName)
 
     metadat = makeMetaDict(dat, fileName)
     objDf = objDfFromLog(dat)
-    posDf, ftDf, nidDf = timeseriesDfFromLog(dat, computePDtrace=True)
+    posDf, ftDf, nidDf = timeseriesDfFromLog(dat, **kwargs)
     texDf = texDfFromLog(dat)
     vidDf = vidDfFromLog(dat)
 
@@ -263,9 +263,9 @@ def objDfFromLog(dat):
         return pd.DataFrame()
 
 
-def posDfFromLog(dat):
+def posDfFromLog(dat, posDfKey='attemptedTranslation', fictracSubject=None):
     # get info about camera position in vr
-    matching = [s for s in dat if "attemptedTranslation" in s]
+    matching = [s for s in dat if posDfKey in s] #checks key to extract from that particular dump
     entries = [None]*len(matching)
     for entry, match in enumerate(matching):
         framedat = {'frame': match['frame'],
@@ -273,11 +273,12 @@ def posDfFromLog(dat):
                         'x': match['worldPosition']['x'],
                         'y': match['worldPosition']['z'], #axes are named differently in Unity
                         'angle': (-match['worldRotationDegs']['y'])%360, #flip due to left handed convention in Unity
-                        'dx':match['actualTranslation']['x'],
-                        'dy':match['actualTranslation']['z'],
-                        'dxattempt': match['attemptedTranslation']['x'],
-                        'dyattempt': match['attemptedTranslation']['z']
                        }
+        if fictracSubject is not 'Integrated':
+            framedat['dx'] = match['actualTranslation']['x'],
+            framedat['dy'] = match['actualTranslation']['z'],
+            framedat['dxattempt'] = match['attemptedTranslation']['x'],
+            framedat['dyattempt'] = match['attemptedTranslation']['z']
         entries[entry] = pd.Series(framedat).to_frame().T
     print('correcting for Unity angle convention.')
 
@@ -400,7 +401,7 @@ def ftTrajDfFromLog(directory, filename):
     ftTrajDf = pd.read_csv(directory+"/"+filename,usecols=cols,names=colnames)
     return ftTrajDf
 
-def timeseriesDfFromLog(dat, computePDtrace):
+def timeseriesDfFromLog(dat, computePDtrace=True, **posDfKeyWargs):
     from scipy.signal import medfilt
 
     posDf = pd.DataFrame(columns=posDfCols)
@@ -411,7 +412,7 @@ def timeseriesDfFromLog(dat, computePDtrace):
     else:
         pdDf = pd.DataFrame(columns = ['frame','time', 'imgfsig'])
 
-    posDf = posDfFromLog(dat)
+    posDf = posDfFromLog(dat,**posDfKeyWargs)
     ftDf = ftDfFromLog(dat)
     dtDf = dtDfFromLog(dat)
 
