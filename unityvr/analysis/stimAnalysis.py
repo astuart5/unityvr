@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import json
 from dataclasses import dataclass, asdict
+import ast
 
 from matplotlib import pyplot as plt
 
@@ -41,10 +42,21 @@ def deriveTexVals(texDf,
 def convertTextureVals(texDf, RF=True):
     if RF: 
         #elevation was mapped
-        texDf['elevation'] = np.round(1-(texDf.ytex % 1),1)
+        texDf['elevation'] = np.round(1-(texDf.ytex % 1),2)
     texDf.xtex = texDf.xtex - texDf.xtex[0]
     xtexpos = texDf.xtex.values.copy()
     xtexpos[xtexpos<0] = 1+xtexpos[xtexpos<0]
     texDf['azimuth'] = xtexpos*360
     texDf['sweepdir'] = np.sign(texDf.xtex) #right handed convention
     return texDf
+
+def deriveVidVals(uvrDat, movieFolderPath, imageFile = 'stimGenDf.csv', sceneFile='scene1DArray.npy'):
+    movieFolder = uvrDat.vidDf['img'].str.split(r'\\').str.get(-2).unique()[0]
+    moviePath = movieFolderPath + movieFolder
+    stimGenDf = pd.read_csv(sep.join([moviePath,imageFile]),index_col=0)
+    uvrDat.vidDf['filename'] = uvrDat.vidDf['img'].str.split(r'\\').str.get(-1)
+    uvrDat.vidDf = pd.merge(uvrDat.vidDf, stimGenDf, on=['filename'])
+    columnsToKeepVid = list(uvrDat.vidDf.columns)
+    uvrDat.vidDf = pd.merge(uvrDat.posDf,uvrDat.vidDf,on = ['frame'],how='left').drop(columns='time_y').rename(columns={'time_x':'time'}).ffill()[columnsToKeepVid]
+    uvrDat.sceneArray = np.load(sep.join([moviePath,sceneFile]))
+    return uvrDat
