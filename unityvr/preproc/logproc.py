@@ -274,7 +274,7 @@ def posDfFromLog(dat, posDfKey='attemptedTranslation', fictracSubject=None):
                         'y': match['worldPosition']['z'], #axes are named differently in Unity
                         'angle': (-match['worldRotationDegs']['y'])%360, #flip due to left handed convention in Unity
                        }
-        if fictracSubject is not 'Integrated':
+        if fictracSubject != 'Integrated':
             framedat['dx'] = match['actualTranslation']['x'],
             framedat['dy'] = match['actualTranslation']['z'],
             framedat['dxattempt'] = match['attemptedTranslation']['x'],
