@@ -116,13 +116,13 @@ def convertJsonToPandas(dirName,fileName,saveDir, computePDtrace):
     return savepath
 
 # constructor for unityVRexperiment
-def constructUnityVRexperiment(dirName,fileName,**kwargs):
+def constructUnityVRexperiment(dirName,fileName,computePDtrace = True,**kwargs):
 
     dat = openUnityLog(dirName, fileName)
 
     metadat = makeMetaDict(dat, fileName)
     objDf = objDfFromLog(dat)
-    posDf, ftDf, nidDf = timeseriesDfFromLog(dat, **kwargs)
+    posDf, ftDf, nidDf = timeseriesDfFromLog(dat, computePDtrace, **kwargs)
     texDf = texDfFromLog(dat)
     vidDf = vidDfFromLog(dat)
 
