@@ -325,7 +325,7 @@ def dtDfFromLog(dat):
 
 def pdDfFromLog(dat, computePDtrace):
     # get NiDaq signal
-    matching = [s for s in dat if "tracePD" in s]
+    matching = [s for s in dat if "imgFrameTrigger" in s]
     entries = [None]*len(matching)
     for entry, match in enumerate(matching):
         if computePDtrace:
