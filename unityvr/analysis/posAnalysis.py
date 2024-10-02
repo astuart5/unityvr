@@ -130,14 +130,14 @@ def rotation_deg(x,y,theta):
 
 
 # Add derrived quantities: Velocities
-def computeVelocities(posDf, convf = 10, window=7, order=3):
+def computeVelocities(posDf, convf = 10, window=7, order=3, period = 360):
     #convf: conversion from dc (to cm if 10)
     #window and order for filter
     from scipy.signal import savgol_filter
 
     # add derrived parameter to positional dataframe
     posDf['vT'] = np.hypot(np.gradient(posDf.x.values*convf), np.gradient(posDf.y.values*convf))*(1/posDf.dt)
-    posDf['vR'] = np.gradient(np.unwrap(posDf.angle.values))
+    posDf['vR'] = np.gradient(np.unwrap(posDf.angle.values, period=period))
 
     posDf['vT_filt'] = savgol_filter(posDf.vT, window, order)
     posDf['vR_filt'] = savgol_filter(posDf.vR, window, order)
