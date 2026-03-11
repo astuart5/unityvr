@@ -11,13 +11,14 @@ numpy = "^1.19.5"
 pandas = "^1.2.0"
 matplotlib = "^3.3.3"
 scipy = "^1.9.2"
-xarray = "^0.17.0"
+xarray = "<0.17.0"
 numpy-ext = "^0.9.5"
-seaborn = "0.12.0"
+seaborn = "0.12.2"
 scikit-image = "^0.19.2"
 statsmodels = "^0.13.2"
 astropy = "^5.1"
 pyyaml = ">=6.0.1"
+fly2p = "0.2.2"
 
 [tool.poetry.dev-dependencies]
 

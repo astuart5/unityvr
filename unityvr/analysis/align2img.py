@@ -9,20 +9,31 @@ from unityvr.preproc import logproc
 from unityvr.analysis import utils as autils
 import scipy as sp
 
-def findImgFrameTimes(uvrDat,imgMetadat,diffVal=3):
+def findImgFrameTimes(uvrDat,imgMetadat,diffVal=3, pdAlign=False, **kwargs):
+    #find the dropped frames and use those to clean up nidDf
+    if pdAlign:
+        uvrDat.nidDf, _ = alignWithPdSignal(uvrDat.nidDf, **kwargs)
+    else:
+        uvrDat.nidDf['frameToAlign'] = uvrDat.nidDf['frame'].copy()
 
-    imgInd = np.where(np.diff(uvrDat.nidDf['imgfsig'].values)>diffVal)[0]
+    #find the start of each volume from the analog signal
+    #now relies on upward crossing of a threshold line
+    imgInd = np.where(np.diff((uvrDat.nidDf['imgfsig'].values > diffVal).astype(int)) == 1)[0]
 
-    imgFrame = uvrDat.nidDf.frame.values[imgInd].astype('int')
+    print('Number of imaging frames detected:', len(imgInd))
+    
+    imgFrame = uvrDat.nidDf.frameToAlign.values[imgInd].astype('int')
 
     #take only every x frame as start of volume
     volFrame = imgFrame[0::imgMetadat['fpv']]
-    volFramePos = np.where(np.in1d(uvrDat.posDf.frame.values,volFrame, ))[0]
+    volFramePos = np.array([np.where(volFrame[i] == uvrDat.posDf.frame.values)[0][0] for i in range(len(volFrame)) if volFrame[i] in uvrDat.posDf.frame.values])
+    #volFramePos = np.where(np.in1d(uvrDat.posDf.frame.values,volFrame, ))[0]
 
     return imgInd, volFramePos
-def debugAlignmentPlots(uvrDat, imgMetadat, imgInd, volFramePos, lims=[1000,1200]):
+
+def debugAlignmentPlots(uvrDat, imgMetadat, imgInd, volFramePos, lims=[0,100]):
     # figure to make some sanity check plots
-    fig, axs = plt.subplots(1,2, figsize=(12,4))
+    fig, axs = plt.subplots(1,3, figsize=(15,4), width_ratios=[1,1,1])
 
     # sanity check if frame starts are detected correctly from analog signal
     axs[0].plot(np.arange(0,len(uvrDat.nidDf.imgfsig.values)), uvrDat.nidDf.imgfsig, '.-')
@@ -41,6 +52,18 @@ def debugAlignmentPlots(uvrDat, imgMetadat, imgInd, volFramePos, lims=[1000,1200
     axs[1].set_ylim(0,round(uvrDat.nidDf.timeinterp.values[imgInd[0::imgMetadat['fpv']]].astype('int')[-1])+1)
     axs[1].set_title('Sanity check 2:\nCheck that time values align well')
     vutils.myAxisTheme(axs[1])
+
+    # sanity check to see the difference in frame start times
+    fps = imgMetadat['fpsscan'] #frame rate of scanimage
+    sampling_rate = len(uvrDat.nidDf.dropna())/(uvrDat.nidDf.dropna()['time'].iloc[-1]-uvrDat.nidDf.dropna()['time'].iloc[0])
+    axs[2].axvline(int(np.round(sampling_rate/fps)), color='r', linestyle='-')
+    axs[2].axvline(int(np.round(sampling_rate/fps))+1, color='r', linestyle='--')
+    axs[2].axvline(int(np.round(sampling_rate/fps))-1, color='r', linestyle='--')
+    axs[2].hist(np.diff(imgInd))
+    axs[2].axvline(np.diff(imgInd).min(), color='tab:blue', linestyle='-', alpha=0.5)
+    axs[2].axvline(np.diff(imgInd).max(), color='tab:blue', linestyle='-', alpha=0.5)
+    axs[2].set_title('Sanity check 3:\nCheck if all frame starts are equally spaced')
+    vutils.myAxisTheme(axs[2])
 
 def mergeUnityDfs(unityDfs, on = ['frame', 'time', 'volumes [s]'], interpolate=None):
     from functools import reduce
@@ -70,7 +93,7 @@ def generateUnityExpDf(imgVolumeTimes, uvrDat, imgMetadat, suppressDepugPlot = F
      #truncate volFrame assuming same start times of imaging and unity session
      lendiff = len(imgVolumeTimes) - len(uvrDat.posDf.time.values[volFramePos])
      if lendiff != 0:
-          print(f'Truncated recording. Difference in length: {lendiff} unity frames')
+          print(f'Truncated recording. Difference in length: {lendiff} imaging volumes')
           if lendiff > 0: imgVolumeTimes = imgVolumeTimes[:-lendiff]
           elif lendiff < 0: volFrame = volFrame[:lendiff]
      
@@ -78,18 +101,23 @@ def generateUnityExpDf(imgVolumeTimes, uvrDat, imgMetadat, suppressDepugPlot = F
 
      #use volume start frames to downsample unityDfs
      for i,unityDfstr in enumerate(unityDfs):
-          unityDf = getattr(uvrDat,unityDfstr)
-          if (frameStr in unityDf):
-               if len(unityDf[frameStr].unique())==len(unityDf[frameStr]):
-                    volFrameId = np.where(np.in1d(unityDf.frame.values,volFrame, ))[0] #in 1d gives true when the element of the 1st array is in the second array
-                    framesinPos = np.where(np.in1d(uvrDat.posDf.frame.values[volFramePos], unityDf.frame.values[volFrameId]))[0] #which volume start frames of current Df are in posDf
-                    unityDfsDS[i] = unityDf.iloc[volFrameId,:].copy()
-                    unityDfsDS[i][timeStr] = imgVolumeTimes[framesinPos].copy() #get the volume start time for the appropriate volumes in the unity array
+            unityDf = getattr(uvrDat,unityDfstr)
+            if (frameStr in unityDf):
+                if len(unityDf[frameStr].unique())==len(unityDf[frameStr]):
+                        volFrameId = np.array([np.where(volFrame[i] == unityDf.frame.values)[0][0] for i in range(len(volFrame)) if volFrame[i] in unityDf.frame.values])
+                        # try: volFrameId = np.array([np.where(volFrame[i] == unityDf.frame.values)[0][0] for i in range(len(volFrame))])
+                        # except IndexError: 
+                        #     volFrameId = np.where(np.in1d(unityDf.frame.values,volFrame, ))[0]
+                        #     print('errored out in :', unityDfstr) #in 1d gives true when the element of the 1st array is in the second array
+                        #volFrameId = np.where(np.in1d(unityDf.frame.values,volFrame, ))[0] #in 1d gives true when the element of the 1st array is in the second array
+                        framesinPos = np.where(np.in1d(uvrDat.posDf.frame.values[volFramePos], unityDf.frame.values[volFrameId]))[0] #which volume start frames of current Df are in posDf
+                        unityDfsDS[i] = unityDf.iloc[volFrameId,:].copy()
+                        unityDfsDS[i][timeStr] = imgVolumeTimes[framesinPos].copy() #get the volume start time for the appropriate volumes in the unity array
      
      expDf = mergeUnityDfs([x for x in unityDfsDS if x is not None],**mergeUnityDfs_params)
      return expDf
 
-def truncateImgDataToUnityDf(imgData, expDf, timeStr = 'time [s]'):
+def truncateImgDataToUnityDf(imgData, expDf, timeStr = 'volumes [s]'):
     imgData = imgData[np.in1d(imgData[timeStr].values, expDf[timeStr].values,)].copy()
     return imgData
 
@@ -223,3 +251,80 @@ def loadAndAlignPreprocessedData(root, subdir, flies, conditions, trials, panDef
 
                 allExpDf = pd.concat([allExpDf,expDf])
     return allExpDf
+
+#take a scene and add imaging time to it
+
+def addImagingTimeToSceneArr(sceneArr, uvrDat, imgDataTime, imgMetadat, timeStr = 'volumes [s]', sceneFrameStr = 'frames', **kwargs):
+    expDf = generateUnityExpDf(imgDataTime, uvrDat, imgMetadat, timeStr=timeStr, **kwargs)
+    timeSubSampled = pd.merge(sceneArr[sceneFrameStr].to_series().rename('frame').reset_index(drop=True), uvrDat.posDf[['frame', 'time']], on='frame', how = 'inner')['time']
+    interpF = sp.interpolate.interp1d(expDf['time'], expDf[timeStr], fill_value='extrapolate')
+    sceneArr = sceneArr.assign_coords(time = (sceneFrameStr, interpF(timeSubSampled)))
+    return sceneArr
+
+# take all the unity dataframes and add imaging time to them
+
+def addImagingTimeToUvrDat(imgDataTime, uvrDat, imgMetadat, timeStr = 'volumes [s]', dataframeAppend = 'Df', frameStr = 'frame', generateExpDf_params = {}):
+    expDf = generateUnityExpDf(imgDataTime, uvrDat, imgMetadat, timeStr=timeStr, dataframeAppend = dataframeAppend, frameStr=frameStr, **generateExpDf_params)
+    interpF = sp.interpolate.interp1d(expDf['frame'], expDf[timeStr], fill_value='extrapolate')
+    for f in  uvrDat.__dataclass_fields__:
+        if dataframeAppend in f:
+            
+            unityDf = getattr(uvrDat,f)
+            if frameStr in unityDf:
+                unityDf[timeStr] = interpF(unityDf['frame'])
+                setattr(uvrDat,f,unityDf)
+    return uvrDat
+
+def find_upticks(signal, smoothing=3):
+    smoothed_signal = sp.ndimage.gaussian_filter1d(signal[~np.isnan(signal)], smoothing)
+    normed_smoothed_signal = smoothed_signal-np.max(smoothed_signal)/2
+    sign_changes = np.sign(normed_smoothed_signal)
+    positive_zero_crossings = np.where((sign_changes[:-1] < 0) & (sign_changes[1:] > 0))[0]
+    return positive_zero_crossings
+
+# def alignWithPdSignal(nidDf, threshold=0.1, noFrameDropCorrection=True):
+#     nidDf = nidDf.dropna().reset_index(drop=True).copy() #remove frames where no photodiode signal was logged
+#     dips = np.where(np.diff((nidDf['pdsig'].values) > threshold) != 0)[0]
+#     NcorrectionFrames = nidDf['frame'].values[dips[0]]-nidDf['frame'].values[0]+1 #the signal value for frame x will be dumped by frame x+1 (that's where +1 comes from)
+#     print('Difference between first unity frame which dumps a high photodiode value and the first unity frame that starts logging photodiode values:',NcorrectionFrames)
+#     nidDf['frameToAlign'] = np.clip(nidDf['frame'].copy() - NcorrectionFrames, nidDf['frame'].min(), nidDf['frame'].max())
+#     validFrames = list(np.unique(nidDf['frameToAlign'].values)) if noFrameDropCorrection else list(np.unique(nidDf['frameToAlign'].values[dips]))
+#     for f in np.arange(1,len(nidDf)):
+#         if nidDf.loc[f,'frameToAlign'] in validFrames:
+#             pass
+#         else:
+#             nidDf.loc[f,'frameToAlign'] = nidDf.loc[f-1,'frameToAlign']
+#     return nidDf
+
+def alignWithPdSignal(nidDf, pdThresh=0.1, pdClip = [0.04, 0.12], noFrameDropCorrection=True, supressPDAlignmentPlot = True, lims=[0,100]):
+    # Drop NaNs and reset index for cleaner processing
+    nidDf = nidDf.dropna(subset=['pdFilt']).reset_index(drop=True).copy()
+
+    #clip the photodiode signal to a reasonable range
+    nidDf['pdFilt'] = np.clip(nidDf['pdFilt'], pdClip[0], pdClip[1])
+    
+    # Find indices where pdsig crosses the threshold in either direction
+    dips = np.where(np.diff(nidDf['pdFilt'] > pdThresh) != 0)[0]
+    
+    # Calculate frame correction based on the first crossing point
+    NcorrectionFrames = nidDf['frame'].iloc[dips[0]] - nidDf['frame'].iloc[0] + 1
+    print('Difference between first unity frame that starts logging photodiode values and first high photodiode frame:', NcorrectionFrames)
+    
+    # Align frames and apply the correction, clamping within frame range
+    nidDf['frameToAlign'] = np.clip(nidDf['frame'] - NcorrectionFrames, nidDf['frame'].min(), nidDf['frame'].max())
+    
+    # Define valid frames depending on the frame drop correction setting
+    validFrames = (np.unique(nidDf['frameToAlign']) if noFrameDropCorrection 
+                   else np.unique(nidDf['frameToAlign'].iloc[dips]))
+    
+    # Adjust frame alignment with forward fill for invalid frames
+    nidDf['frameToAlign'] = nidDf['frameToAlign'].where(nidDf['frameToAlign'].isin(validFrames)).ffill()
+
+    if not supressPDAlignmentPlot:
+        _, ax = plt.subplots(figsize=(3, 1))
+        ax.plot(nidDf['pdFilt'].values, label='Photodiode Signal')
+        ax.plot(dips, nidDf['pdFilt'].values[dips], 'ko')
+        ax.set_xlim(lims[0], lims[1])
+        vutils.myAxisTheme(ax)
+    
+    return nidDf, dips

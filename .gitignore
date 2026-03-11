@@ -1,7 +1,8 @@
 .ipynb_checkpoints
 .DS_Store
 unityvr/sample/*
-!unityvr/sample/Log_2021-05-19_18-25-15_SS96_x_7f_f07_EB_panA2_t01.json
+!unityvr/sample/sample1/
+!unityvr/sample/sample2/
 *.pyc
 unityvr/__pycache__/*
 unityvr/preproc/__pycache__/*

@@ -34,3 +34,4 @@ def getClutterDf(objectDf, searchstr = 'default', renameClutterObjects = True):
         clutterDf['name'] = clutterDf['name'].apply(lambda x: x.split('/')[1])
         clutterDf = clutterDf.drop_duplicates()
     return clutterDf
+
