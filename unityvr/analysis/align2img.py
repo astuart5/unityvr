@@ -55,7 +55,7 @@ def debugAlignmentPlots(uvrDat, imgMetadat, imgInd, volFramePos, lims=[0,100]):
 
     # sanity check to see the difference in frame start times
     fps = imgMetadat['fpsscan'] #frame rate of scanimage
-    sampling_rate = len(uvrDat.nidDf.dropna(subset=['time']))/(uvrDat.nidDf.dropna()['time'].iloc[-1]-uvrDat.nidDf.dropna()['time'].iloc[0])
+    sampling_rate = len(uvrDat.nidDf.dropna(subset=['time']))/(uvrDat.nidDf.dropna(subset=['time'])['time'].iloc[-1]-uvrDat.nidDf.dropna(subset=['time'])['time'].iloc[0])
     axs[2].axvline(int(np.round(sampling_rate/fps)), color='r', linestyle='-')
     axs[2].axvline(int(np.round(sampling_rate/fps))+1, color='r', linestyle='--')
     axs[2].axvline(int(np.round(sampling_rate/fps))-1, color='r', linestyle='--')
@@ -80,8 +80,7 @@ def mergeUnityDfs(unityDfs, on = ['frame', 'time', 'volumes [s]'], interpolate=N
     return unityDfMerged
 
 #generate expDf in a general fashion
-def generateUnityExpDf(imgVolumeTimes, uvrDat, imgMetadat, suppressDepugPlot = False, dataframeAppend = 'Df',
-     frameStr = 'frame', timeStr = 'volumes [s]', findImgFrameTimes_params={}, debugAlignmentPlots_params={}, mergeUnityDfs_params = {}):
+def generateUnityExpDf(imgVolumeTimes, uvrDat, imgMetadat, suppressDepugPlot = False, dataframeAppend = 'Df', frameStr = 'frame', timeStr = 'volumes [s]', findImgFrameTimes_params={}, debugAlignmentPlots_params={}, mergeUnityDfs_params = {}):
      imgVolumeTimes = imgVolumeTimes.copy()
 
      unityDfs = [f for f in  uvrDat.__dataclass_fields__ if dataframeAppend in f]
